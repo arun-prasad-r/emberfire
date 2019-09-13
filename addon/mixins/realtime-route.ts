@@ -6,22 +6,22 @@ import DS from 'ember-data';
 //      handle includes
 export default Mixin.create({
     
-    subscribeModel(model) {
+    subscribeModel(model:any) {
         let subscriptionId = model.toString();
         subscribe(this, model, subscriptionId);
     },
-    unsubscribeModel(model) {
+    unsubscribeModel(model: any) {
         let subscriptionId = model.toString()
         unsubscribe(this, subscriptionId);
     },
 
-    afterModel(model) {
+    afterModel(model: any) {
         if (model instanceof (DS.Model) || model instanceof (DS.RecordArray)) {
             this.subscribeModel(model);
         } else {
             let keys = Object.keys(model);
             keys.forEach((key) => {
-                let individualModel = model[key];
+                let individualModel = model[key] as any;
                 if (individualModel instanceof (DS.Model) || individualModel instanceof (DS.RecordArray)) {
                     this.subscribeModel(model[key]);
                 }
@@ -31,6 +31,7 @@ export default Mixin.create({
     },
 
     deactivate() {
+        // @ts-ignore.
         let model = this.currentModel;
         if (model instanceof (DS.Model) || model instanceof (DS.RecordArray)) {
             this.unsubscribeModel(model);

@@ -3,7 +3,7 @@ import { getOwner } from '@ember/application';
 import DS from 'ember-data';
 import { get } from '@ember/object';
 import { run } from '@ember/runloop';
-import { firestore, /*database*/ } from 'firebase/app';
+import { firestore, database, /*database*/ } from 'firebase/app';
 
 // TODO don't hardcode these, but having trouble otherwise
 import { normalize as firestoreNormalize } from '../serializers/firestore';
@@ -15,12 +15,12 @@ const isFastboot = (object: Object) => {
     return fastboot && fastboot.isFastBoot;
 };
 
-export const subscribe = (subscriber: any, model: DS.Model, subscriptionId: String) => !isFastboot(subscriber) && getThisService(subscriber).subscribe(subscriber, model, subscriptionId);
-export const unsubscribe = (subscriber: any, subscriptionId: String) => !isFastboot(subscriber) && getThisService(subscriber).unsubscribe(subscriber, subscriptionId);
+export const subscribe = (subscriber: any, model: DS.Model, subscriptionId: string) => !isFastboot(subscriber) && getThisService(subscriber).subscribe(subscriber, model, subscriptionId);
+export const unsubscribe = (subscriber: any, subscriptionId: string) => !isFastboot(subscriber) && getThisService(subscriber).unsubscribe(subscriber, subscriptionId);
 
-const setSubscription = (thisService: RealtimeListenerService, subscriptionId: String, unsubscribe: (() => void) | null) => {
+const setSubscription = (thisService: RealtimeListenerService, subscriptionId: string, unsubscribe: (() => void) | null) => {
     const subscriptions = get(thisService, `subscriptions`);
-    const existingSubscription = get(subscriptions, subscriptionId);
+    const existingSubscription = subscriptions[subscriptionId];
     if (existingSubscription) {
         existingSubscription();
     }
@@ -39,9 +39,9 @@ function isFirestoreDocumentRefernce(arg: any): arg is firestore.DocumentReferen
 }
 
 export default class RealtimeListenerService extends Service.extend({
-    subscriptions: {}
+    subscriptions: {} as any
 }) {
-    subscribe(subscriber: any, model: any, subscriptionId: String) {
+    subscribe(_subscriber: any, model: any, subscriptionId: string) {
         const store = model.store;
         const modelName = (model.modelName || model.get('_internalModel.modelName'));
         const modelClass = store.modelFor(modelName);
@@ -84,7 +84,7 @@ export default class RealtimeListenerService extends Service.extend({
                 });
                 setSubscription(this, subscriptionId, unsubscribe);
             } else {
-                const onChildAdded = query.on('child_added', (snapshot, priorKey) => {
+                const onChildAdded = query.on('child_added', (snapshot: database.DataSnapshot, priorKey: string) => {
                     run(() => {
                         if (snapshot) {
                             const normalizedData = databaseNormalize(store, modelClass, snapshot);
@@ -103,7 +103,7 @@ export default class RealtimeListenerService extends Service.extend({
                         }
                     });
                 });
-                const onChildRemoved = query.on('child_removed', snapshot => {
+                const onChildRemoved = query.on('child_removed', (snapshot:database.DataSnapshot) => {
                     run(() => {
                         if (snapshot) {
                             const record = model.content.find((record: any) => record.id === snapshot.key);
@@ -111,7 +111,7 @@ export default class RealtimeListenerService extends Service.extend({
                         }
                     });
                 });
-                const onChildChanged = query.on('child_changed', snapshot => {
+                const onChildChanged = query.on('child_changed', (snapshot:database.DataSnapshot) => {
                     run(() => {
                         if (snapshot) {
                             const normalizedData = databaseNormalize(store, modelClass, snapshot);
@@ -119,7 +119,7 @@ export default class RealtimeListenerService extends Service.extend({
                         }
                     });
                 });
-                const onChildMoved = query.on('child_moved', (snapshot, priorKey) => {
+                const onChildMoved = query.on('child_moved', (snapshot:database.DataSnapshot, priorKey:string) => {
                     run(() => {
                         if (snapshot) {
                             const normalizedData = databaseNormalize(store, modelClass, snapshot);
@@ -154,7 +154,7 @@ export default class RealtimeListenerService extends Service.extend({
                 });
                 setSubscription(this, subscriptionId, unsubscribe);
             } else {
-                const listener = ref.on('value', snapshot => {
+                const listener = ref.on('value', (snapshot:database.DataSnapshot) => {
                     run(() => {
                         if (snapshot) {
                             if (snapshot.exists()) {
@@ -174,7 +174,7 @@ export default class RealtimeListenerService extends Service.extend({
             }
         }
     }
-    unsubscribe(subscriber: any, subscriptionId: String) {
+    unsubscribe(_subscriber: any, subscriptionId: string) {
         setSubscription(this, subscriptionId, null);
     }
 }
