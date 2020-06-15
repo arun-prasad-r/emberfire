@@ -3,7 +3,7 @@ import { subscribe, unsubscribe } from '../services/realtime-listener';
 import DS from 'ember-data';
 
 // TODO make sure realtime works on findAll
-//      handle includes
+//      handle includes.
 export default Mixin.create({
     
     subscribeModel(model:any) {
@@ -15,7 +15,7 @@ export default Mixin.create({
         unsubscribe(this, subscriptionId);
     },
 
-    afterModel(model: any) {
+    afterModel(model: any, transition: any) {
         if (model instanceof (DS.Model) || model instanceof (DS.RecordArray)) {
             this.subscribeModel(model);
         } else {
@@ -27,7 +27,7 @@ export default Mixin.create({
                 }
             });
         }
-        return this._super(model);
+        return this._super(model, transition);
     },
 
     deactivate() {

@@ -103,7 +103,7 @@ export default class RealtimeListenerService extends Service.extend({
                         }
                     });
                 });
-                const onChildRemoved = query.on('child_removed', (snapshot:database.DataSnapshot) => {
+                const onChildRemoved = query.on('child_removed', (snapshot: database.DataSnapshot) => {
                     run(() => {
                         if (snapshot) {
                             const record = model.content.find((record: any) => record.id === snapshot.key);
@@ -111,7 +111,7 @@ export default class RealtimeListenerService extends Service.extend({
                         }
                     });
                 });
-                const onChildChanged = query.on('child_changed', (snapshot:database.DataSnapshot) => {
+                const onChildChanged = query.on('child_changed', (snapshot: database.DataSnapshot) => {
                     run(() => {
                         if (snapshot) {
                             const normalizedData = databaseNormalize(store, modelClass, snapshot);
@@ -119,7 +119,7 @@ export default class RealtimeListenerService extends Service.extend({
                         }
                     });
                 });
-                const onChildMoved = query.on('child_moved', (snapshot:database.DataSnapshot, priorKey:string) => {
+                const onChildMoved = query.on('child_moved', (snapshot: database.DataSnapshot, priorKey: string) => {
                     run(() => {
                         if (snapshot) {
                             const normalizedData = databaseNormalize(store, modelClass, snapshot);
@@ -148,22 +148,38 @@ export default class RealtimeListenerService extends Service.extend({
             if (isFirestoreDocumentRefernce(ref)) {
                 const unsubscribe = ref.onSnapshot(doc => {
                     run(() => {
-                        const normalizedData = firestoreNormalize(store, modelClass, doc);
-                        store.push(normalizedData);
+                        if (doc.exists) {
+                            const normalizedData = firestoreNormalize(store, modelClass, doc);
+                            store.push(normalizedData);
+                        } else {
+                            const record = store.peekRecord(modelName, doc.id);
+                            if (record) {
+                                record.set('isUnloaded', true);
+                                record.set('unloadReason', 'document_does_not_exist');
+                                store.unloadRecord(record);
+                            }
+                        }
                     });
+                }, (error) => {
+                    const record = store.peekRecord(modelName, ref.id);
+                    if (record) {
+                        record.set('isUnloaded', true);
+                        record.set('unloadReason', error);
+                        store.unloadRecord(record);
+                    }
                 });
                 setSubscription(this, subscriptionId, unsubscribe);
             } else {
-                const listener = ref.on('value', (snapshot:database.DataSnapshot) => {
+                const listener = ref.on('value', (snapshot: database.DataSnapshot) => {
                     run(() => {
                         if (snapshot) {
                             if (snapshot.exists()) {
                                 const normalizedData = databaseNormalize(store, modelClass, snapshot);
                                 store.push(normalizedData);
                             } else {
-                                const record = store.findRecord(modelName, snapshot.key!);
+                                const record = store.peekRecord(modelName, snapshot.key!);
                                 if (record) {
-                                    store.deleteRecord(record);
+                                    store.unloadRecord(record);
                                 }
                             }
                         }
