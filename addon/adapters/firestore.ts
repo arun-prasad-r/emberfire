@@ -25,12 +25,12 @@ import { firestore } from 'firebase/app';
  */
 export default class FirestoreAdapter extends DS.Adapter.extend({
 
-    namespace: undefined as string|undefined,
+    namespace: undefined as string | undefined,
     firebaseApp: service('firebase-app'),
-    settings: { } as firestore.Settings,
+    settings: {} as firestore.Settings,
     enablePersistence: false as boolean,
-    persistenceSettings: { } as firestore.PersistenceSettings,
-    firestore: undefined as RSVP.Promise<firestore.Firestore>|undefined,
+    persistenceSettings: {} as firestore.PersistenceSettings,
+    firestore: undefined as RSVP.Promise<firestore.Firestore> | undefined,
     defaultSerializer: '-firestore'
 
 }) {
@@ -65,7 +65,7 @@ export default class FirestoreAdapter extends DS.Adapter.extend({
      * 
      */
     // @ts-ignore repeat here for the tyepdocs
-    namespace: string|undefined;
+    namespace: string | undefined;
 
     /**
      * Override the default configuration of the Cloud Firestore adapter: `{ timestampsInSnapshots: true }`
@@ -99,7 +99,7 @@ export default class FirestoreAdapter extends DS.Adapter.extend({
      */
     // @ts-ignore repeat here for the tyepdocs
     persistenceSettings: firestore.PersistenceSettings;
-    
+
     /**
      * Override the default FirebaseApp Service used by the FirestoreAdapter: `service('firebase-app')`
      * 
@@ -124,8 +124,8 @@ export default class FirestoreAdapter extends DS.Adapter.extend({
     findAll<K extends keyof ModelRegistry>(store: DS.Store, type: ModelRegistry[K]) {
         return this.query(store, type)
     }
-    
-    findHasMany<K extends keyof ModelRegistry>(store: DS.Store, snapshot: DS.Snapshot<K>, url: string, relationship: {[key:string]: any}) {
+
+    findHasMany<K extends keyof ModelRegistry>(store: DS.Store, snapshot: DS.Snapshot<K>, url: string, relationship: { [key: string]: any }) {
         const adapter = store.adapterFor(relationship.type as never) as any; // TODO fix types
         if (adapter !== this) {
             return adapter.findHasMany(store, snapshot, url, relationship) as RSVP.Promise<any>;
@@ -136,7 +136,7 @@ export default class FirestoreAdapter extends DS.Adapter.extend({
         }
     }
 
-    findBelongsTo<K extends keyof ModelRegistry>(store: DS.Store, snapshot: DS.Snapshot<K>, url: string, relationship: {[key:string]: any}) {
+    findBelongsTo<K extends keyof ModelRegistry>(store: DS.Store, snapshot: DS.Snapshot<K>, url: string, relationship: { [key: string]: any }) {
         const adapter = store.adapterFor(relationship.type as never) as any; // TODO fix types
         if (adapter !== this) {
             return adapter.findBelongsTo(store, snapshot, url, relationship) as RSVP.Promise<any>;
@@ -149,16 +149,15 @@ export default class FirestoreAdapter extends DS.Adapter.extend({
         return rootCollection(this, type).then(collection => queryDocs(collection, queryOptionsToQueryFn(options)));
     }
 
-    queryRecord<K extends keyof ModelRegistry>(_store: DS.Store, type: ModelRegistry[K], options?: QueryOptions|QueryRecordOptions) {
-        return rootCollection(this, type).then((ref:firestore.CollectionReference) => {
+    queryRecord<K extends keyof ModelRegistry>(_store: DS.Store, type: ModelRegistry[K], options?: QueryOptions | QueryRecordOptions) {
+        return rootCollection(this, type).then((ref: firestore.CollectionReference) => {
             const queryOrRef = queryRecordOptionsToQueryFn(options)(ref);
             if (isQuery(queryOrRef)) {
-                if (queryOrRef.limit) { throw "Dont specify limit on queryRecord" }
                 return queryOrRef.limit(1).get();
             } else {
                 return queryOrRef.get() as any; // TODO fix the types here, they're a little broken
             }
-        }).then((snapshot:firestore.QuerySnapshot|firestore.DocumentSnapshot) => {
+        }).then((snapshot: firestore.QuerySnapshot | firestore.DocumentSnapshot) => {
             if (isQuerySnapshot(snapshot)) {
                 return snapshot.docs[0];
             } else {
@@ -200,18 +199,18 @@ export type CollectionReferenceOrQuery = firestore.CollectionReference | firesto
 export type QueryFn = (ref: CollectionReferenceOrQuery) => CollectionReferenceOrQuery;
 export type QueryRecordFn = (ref: firestore.CollectionReference) => firestore.DocumentReference;
 
-export type WhereOp = [string|firestore.FieldPath, firestore.WhereFilterOp, any];
-export type OrderOp = string|{[key:string]: "asc"|"desc"};
-export type BoundOp = firestore.DocumentSnapshot|any[];
+export type WhereOp = [string | firestore.FieldPath, firestore.WhereFilterOp, any];
+export type OrderOp = string | { [key: string]: "asc" | "desc" };
+export type BoundOp = firestore.DocumentSnapshot | any[];
 
 export type QueryOptionsOnlyQuery = {
-    query: (ref: firestore.CollectionReference) => firestore.CollectionReference|firestore.Query
+    query: (ref: firestore.CollectionReference) => firestore.CollectionReference | firestore.Query
 }
 
 // TODO adapterOptions?
 export type QueryOptions = ({
-    filter?: {[key:string]:any},
-    where?: WhereOp|WhereOp[],
+    filter?: { [key: string]: any },
+    where?: WhereOp | WhereOp[],
     endAt?: BoundOp,
     endBefore?: BoundOp,
     startAt?: BoundOp,
@@ -233,17 +232,17 @@ const isQuerySnapshot = (arg: any): arg is firestore.QuerySnapshot => arg.docs !
 const noop = (ref: CollectionReferenceOrQuery) => ref;
 const getDoc = (adapter: FirestoreAdapter, type: DS.Model, id: string) => docReference(adapter, type, id).then(doc => doc.get());
 // TODO allow override
-const collectionNameForType = (type: any) => pluralize(camelize(typeof(type) === 'string' ? type : type.modelName));
+const collectionNameForType = (type: any) => pluralize(camelize(typeof (type) === 'string' ? type : type.modelName));
 const docReference = (adapter: FirestoreAdapter, type: any, id: string) => rootCollection(adapter, type).then(collection => collection.doc(id));
 const getDocs = (query: CollectionReferenceOrQuery) => query.get();
-const rootCollection = (adapter: FirestoreAdapter, type: any) =>  getFirestore(adapter).then(firestore => {
+const rootCollection = (adapter: FirestoreAdapter, type: any) => getFirestore(adapter).then(firestore => {
     const namespace = get(adapter, 'namespace');
     const root = namespace ? firestore.doc(namespace) : firestore;
     return root.collection(collectionNameForType(type));
 })
 const queryDocs = (referenceOrQuery: CollectionReferenceOrQuery, query?: QueryFn) => getDocs((query || noop)(referenceOrQuery));
 
-const queryRecordOptionsToQueryFn = (options?:QueryOptions|QueryRecordOptions) => (ref:firestore.CollectionReference) => isDocOnly(options) ? options.doc(ref) : queryOptionsToQueryFn(options)(ref);
+const queryRecordOptionsToQueryFn = (options?: QueryOptions | QueryRecordOptions) => (ref: firestore.CollectionReference) => isDocOnly(options) ? options.doc(ref) : queryOptionsToQueryFn(options)(ref);
 
 // query: ref => ref.where(...)
 // filter: { published: true }
@@ -251,7 +250,7 @@ const queryRecordOptionsToQueryFn = (options?:QueryOptions|QueryRecordOptions) =
 // where: [['something', '<', 11], ['else', '==', true]]
 // orderBy: 'publishedAt'
 // orderBy: { publishedAt: 'desc' }
-const queryOptionsToQueryFn = (options?:QueryOptions) => (collectionRef:firestore.CollectionReference) => {
+const queryOptionsToQueryFn = (options?: QueryOptions) => (collectionRef: firestore.CollectionReference) => {
     let ref = collectionRef as CollectionReferenceOrQuery;
     if (options) {
         if (isQueryOnly(options)) { return options.query(collectionRef); }
@@ -261,19 +260,19 @@ const queryOptionsToQueryFn = (options?:QueryOptions) => (collectionRef:firestor
             })
         }
         if (options.where) {
-            const runWhereOp = ([field, op, value]:WhereOp) => ref = ref.where(field, op, value);
+            const runWhereOp = ([field, op, value]: WhereOp) => ref = ref.where(field, op, value);
             if (isWhereOp(options.where)) { runWhereOp(options.where) } else { options.where.forEach(runWhereOp) }
         }
-        if (options.endAt)      { ref = ref.endAt(options.endAt) }
-        if (options.endBefore)  { ref = ref.endBefore(options.endBefore) }
-        if (options.startAt)    { ref = ref.startAt(options.startAt) }
+        if (options.endAt) { ref = ref.endAt(options.endAt) }
+        if (options.endBefore) { ref = ref.endBefore(options.endBefore) }
+        if (options.startAt) { ref = ref.startAt(options.startAt) }
         if (options.startAfter) { ref = ref.startAt(options.startAfter) }
         if (options.orderBy) {
             if (typeof options.orderBy === "string") {
                 ref = ref.orderBy(options.orderBy)
             } else {
                 Object.keys(options.orderBy).forEach(field => {
-                    ref = ref.orderBy(field, (options.orderBy as any)[field] as "asc"|"desc") // TODO fix type
+                    ref = ref.orderBy(field, (options.orderBy as any)[field] as "asc" | "desc") // TODO fix type
                 });
             }
         }

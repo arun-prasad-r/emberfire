@@ -8,16 +8,16 @@ export type Snapshot = firestore.DocumentSnapshot | firestore.QuerySnapshot;
 export default class FirestoreSerializer extends DS.JSONSerializer {
 
   normalizeSingleResponse(store: DS.Store, primaryModelClass: DS.Model, payload: firestore.DocumentSnapshot, _id: string | number, _requestType: string) {
-    if (!payload.exists) { throw  new DS.NotFoundError(); }
+    if (!payload.exists) { throw new DS.NotFoundError(); }
     const meta = extractMeta(payload);
     return { ...normalize(store, primaryModelClass, payload), meta };
   }
 
   normalizeArrayResponse(store: DS.Store, primaryModelClass: DS.Model, payload: firestore.QuerySnapshot, _id: string | number, _requestType: string) {
     const normalizedPayload = payload.docs.map(snapshot => normalize(store, primaryModelClass, snapshot));
-    const included = new Array().concat(...normalizedPayload.map(({included}) => included));
+    const included = new Array().concat(...normalizedPayload.map(({ included }) => included));
     const meta = extractMeta(payload)
-    const data = normalizedPayload.map(({data}) => data);
+    const data = normalizedPayload.map(({ data }) => data);
     return { data, included, meta };
   }
 
@@ -43,7 +43,7 @@ function isQuerySnapshot(arg: any): arg is firestore.QuerySnapshot {
   return arg.query !== undefined;
 }
 
-const extractMeta = (snapshot: firestore.DocumentSnapshot|firestore.QuerySnapshot) => {
+const extractMeta = (snapshot: firestore.DocumentSnapshot | firestore.QuerySnapshot) => {
   if (isQuerySnapshot(snapshot)) {
     const query = snapshot.query;
     return { ...snapshot.metadata, query };
@@ -53,14 +53,14 @@ const extractMeta = (snapshot: firestore.DocumentSnapshot|firestore.QuerySnapsho
 }
 
 const normalizeRelationships = (store: DS.Store, modelClass: DS.Model, attributes: any) => {
-  const relationships: {[field:string]: any} = {};
+  const relationships: { [field: string]: any } = {};
   const included: any[] = [];
   modelClass.eachRelationship((key: string, relationship: any) => {
     const attribute = attributes[key];
     delete attributes[key];
     relationships[key] = normalizeRealtionship(relationship)(store, attribute, relationship, included);
   }, null);
-  return {relationships, included};
+  return { relationships, included };
 }
 
 const normalizeRealtionship = (relationship: any) => {
@@ -77,9 +77,9 @@ const normalizeRealtionship = (relationship: any) => {
 
 const normalizeBelongsTo = (_store: DS.Store, id: any, relationship: any, _included: any[]) => {
   if (id) {
-    return { data: { id, type: relationship.type }};
+    return { data: { id, type: relationship.type } };
   } else {
-    return { };
+    return {};
   }
 }
 
@@ -87,20 +87,21 @@ const normalizeEmbedded = (store: DS.Store, attribute: any, relationship: any, i
   if (attribute) {
     Object.keys(attribute).forEach(id => {
       const val = attribute[id];
-      const snapshot = (({ id, data: () => val } as any) as DocumentSnapshot);
+      const _id = val.id;
+      const snapshot = (({ id: _id, data: () => val } as any) as DocumentSnapshot);
       const model = store.modelFor(relationship.type as never);
       const { data, included: includes } = normalize(store, model, snapshot);
       included.push(data);
-      includes.forEach((record:any) => included.push(record));
+      includes.forEach((record: any) => included.push(record));
     });
     const data = included
       .filter(record => record.type == relationship.type)
       .map(record => ({ id: record.id, type: record.type }));
     return { links: { related: 'emberfire' }, data };
   } else {
-    return { };
+    return {};
   }
 }
 
-const normalizeHasMany = (_store: DS.Store, _attribute: any, _relationship: any, _included: any[]) => 
+const normalizeHasMany = (_store: DS.Store, _attribute: any, _relationship: any, _included: any[]) =>
   ({ links: { related: 'emberfire' } })
